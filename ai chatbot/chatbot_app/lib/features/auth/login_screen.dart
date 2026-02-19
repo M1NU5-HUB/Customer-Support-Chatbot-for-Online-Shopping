@@ -21,8 +21,25 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscure = true;
 
   Future<void> _doLogin() async {
+    final email = _email.text.trim();
+    final password = _password.text.trim();
+
+    // Validation
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address'), backgroundColor: Colors.redAccent)
+      );
+      return;
+    }
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your password'), backgroundColor: Colors.redAccent)
+      );
+      return;
+    }
+
     setState(() => _loading = true);
-    final user = await _auth.login(_email.text, _password.text);
+    final user = await _auth.login(email, password);
     Provider.of<AppState>(context, listen: false).login(user);
     setState(() => _loading = false);
     if (mounted) context.go('/home');
@@ -128,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () {},
-                  icon: Image.network('https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg', width: 20, height: 20),
+                  icon: const Icon(Icons.login, color: Colors.white),
                   label: const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('Sign in with Google', style: TextStyle(color: Colors.white))),
                   style: OutlinedButton.styleFrom(
                     backgroundColor: card,

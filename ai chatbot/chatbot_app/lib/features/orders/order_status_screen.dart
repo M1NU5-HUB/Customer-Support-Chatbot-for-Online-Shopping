@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../providers/app_state.dart';
 import '../../services/order_service.dart';
 
@@ -35,7 +36,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Order Status')),
+      appBar: AppBar(title: const Text('Order Status'), leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/home'))),
       body: Center(
         child: _loading ? const CircularProgressIndicator() : Text(_status ?? 'No active order'),
       ),

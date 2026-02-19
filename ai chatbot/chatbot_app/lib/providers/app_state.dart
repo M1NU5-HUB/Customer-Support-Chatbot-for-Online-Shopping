@@ -5,6 +5,7 @@ import '../models/message_model.dart';
 class AppState extends ChangeNotifier {
   UserModel? user;
   final List<MessageModel> messages = [];
+  int selectedChatVariant = 1;
 
   bool get isLoggedIn => user != null;
 
@@ -21,6 +22,11 @@ class AppState extends ChangeNotifier {
 
   void addMessage(MessageModel m) {
     messages.add(m);
+    notifyListeners();
+  }
+
+  void setChatVariant(int v) {
+    selectedChatVariant = v;
     notifyListeners();
   }
 }
