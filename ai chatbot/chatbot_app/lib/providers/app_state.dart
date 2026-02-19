@@ -6,8 +6,15 @@ class AppState extends ChangeNotifier {
   UserModel? user;
   final List<MessageModel> messages = [];
   int selectedChatVariant = 1;
+  bool _isLoadingChat = false;
 
   bool get isLoggedIn => user != null;
+  bool get isLoadingChat => _isLoadingChat;
+
+  void setLoadingChat(bool value) {
+    _isLoadingChat = value;
+    notifyListeners();
+  }
 
   void login(UserModel u) {
     user = u;

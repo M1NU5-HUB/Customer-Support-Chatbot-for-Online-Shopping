@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/app_state.dart';
-import '../../services/chat_service.dart';
+import '../../services/openai_service.dart';
 import '../../models/message_model.dart';
+import 'dart:math';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -14,16 +15,84 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
-  final ChatService _chatService = ChatService();
+  final OpenAIService _openaiService = OpenAIService();
 
+  /// Send user message and get AI response via OpenAI API
+  /// Prevents multiple concurrent API calls and provides loading indicator
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    final user = Provider.of<AppState>(context, listen: false).user;
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final user = appState.user;
+    
     if (user == null) return;
-    final msg = await _chatService.sendMessage(user.userId, text);
-    Provider.of<AppState>(context, listen: false).addMessage(msg);
+    
+    // Prevent multiple concurrent API calls
+    if (appState.isLoadingChat) return;
+
+    // Add user message immediately to UI
+    final userMessage = MessageModel(
+      messageId: _generateMessageId(),
+      userId: user.userId,
+      messageText: text,
+      sender: 'user',
+      timestamp: DateTime.now(),
+    );
+    appState.addMessage(userMessage);
     _controller.clear();
+
+    // Set loading state to prevent duplicate requests
+    appState.setLoadingChat(true);
+
+    try {
+      // Call OpenAI API to get AI response
+      final aiResponse = await _openaiService.getChatResponse(text);
+
+      // Only proceed if widget is still mounted
+      if (!mounted) return;
+
+      // Create and add AI message to chat
+      final aiMessage = MessageModel(
+        messageId: _generateMessageId(),
+        userId: user.userId,
+        messageText: aiResponse,
+        sender: 'assistant',
+        timestamp: DateTime.now(),
+      );
+      appState.addMessage(aiMessage);
+    } catch (e) {
+      // Show error message to user
+      if (!mounted) return;
+      
+      final errorMessage = MessageModel(
+        messageId: _generateMessageId(),
+        userId: user.userId,
+        messageText: 'Sorry, I couldn\'t process your request. Error: ${e.toString()}',
+        sender: 'assistant',
+        timestamp: DateTime.now(),
+      );
+      appState.addMessage(errorMessage);
+
+      // Also show error snackbar for better UX
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Chat error: ${e.toString()}'),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      // Always clear loading state
+      if (mounted) {
+        appState.setLoadingChat(false);
+      }
+    }
+  }
+
+  /// Generate unique message ID
+  String _generateMessageId() {
+    return 'msg_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(10000)}';
   }
 
   String _formatTime(DateTime t) {
@@ -100,6 +169,36 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
 
+        // Loading indicator while AI is processing
+        if (Provider.of<AppState>(context).isLoadingChat)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F1720),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('AI is thinking...', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         // Input area
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -114,6 +213,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
+                      enabled: !Provider.of<AppState>(context).isLoadingChat,
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(hintText: 'Message...', border: InputBorder.none, hintStyle: TextStyle(color: Colors.white38)),
                     ),
@@ -123,7 +223,17 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            FloatingActionButton(onPressed: _send, mini: true, backgroundColor: Colors.blueAccent, child: const Icon(Icons.send)),
+            // Send button with loading indicator
+            Provider.of<AppState>(context).isLoadingChat
+                ? const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent)),
+                    ),
+                  )
+                : FloatingActionButton(onPressed: _send, mini: true, backgroundColor: Colors.blueAccent, child: const Icon(Icons.send)),
           ]),
         )
       ]),
