@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 /// Hugging Face Inference API service
 ///
 /// Responsibilities:
-/// - Call the Hugging Face Inference API for the configured model
+/// - Call the Hugging Face Router API (new endpoint) for the configured model
 /// - Return a clean text response
 /// - Throw descriptive exceptions on error conditions
 ///
@@ -18,7 +18,8 @@ class HuggingFaceService {
 
   // Model to call
   static const String _model = 'mistralai/mistral-7b-instruct-v0.2';
-  static final Uri _endpoint = Uri.parse('https://api-inference.huggingface.co/models/$_model');
+  // New HuggingFace Router API endpoint (replaces deprecated api-inference.huggingface.co)
+  static final Uri _endpoint = Uri.parse('https://router.huggingface.co/hf-inference/models/$_model');
 
   /// Generate a response for the given user message using the Hugging Face model.
   ///
@@ -52,7 +53,7 @@ class HuggingFaceService {
       if (resp.statusCode == 200) {
         final decoded = jsonDecode(resp.body);
 
-        // Hugging Face returns different shapes depending on model/config.
+        // Hugging Face Router API returns different shapes depending on model/config.
         // Common shapes:
         // 1) { "generated_text": "..." }
         // 2) [ { "generated_text": "..." } ]
@@ -63,16 +64,6 @@ class HuggingFaceService {
         } else if (decoded is List && decoded.isNotEmpty) {
           final first = decoded[0];
           if (first is Map<String, dynamic> && first.containsKey('generated_text')) {
-            result = first['generated_text'] as String;
-          } else if (first is Map<String, dynamic> && first.containsKey('generated_text')) {
-            result = first['generated_text'] as String;
-          } else if (first is Map<String, dynamic> && first.containsKey('generated_text')) {
-            result = first['generated_text'] as String;
-          } else if (first is Map<String, dynamic> && first.containsKey('generated_text')) {
-            result = first['generated_text'] as String;
-          } else if (first is Map<String, dynamic> && first.containsKey('generated_text')) {
-            result = first['generated_text'] as String;
-          } else if (first is Map<String, dynamic> && first.containsKey('generated_text')) {
             result = first['generated_text'] as String;
           } else if (first is Map<String, dynamic> && first.containsKey('text')) {
             result = first['text'] as String;
@@ -89,6 +80,8 @@ class HuggingFaceService {
         return _cleanResult(result);
       } else if (resp.statusCode == 401) {
         throw Exception('Unauthorized: invalid Hugging Face token');
+      } else if (resp.statusCode == 410) {
+        throw Exception('Hugging Face API endpoint deprecated. Please check documentation for updates');
       } else if (resp.statusCode == 429) {
         throw Exception('Rate limit exceeded. Please try again later');
       } else {
