@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/app_state.dart';
-import '../../services/openai_service.dart';
+import '../../services/huggingface_service.dart';
 import '../../models/message_model.dart';
 import 'dart:math';
 
@@ -15,7 +15,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
-  final OpenAIService _openaiService = OpenAIService();
+  final HuggingFaceService _hfService = HuggingFaceService();
 
   /// Send user message and get AI response via OpenAI API
   /// Prevents multiple concurrent API calls and provides loading indicator
@@ -46,8 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
     appState.setLoadingChat(true);
 
     try {
-      // Call OpenAI API to get AI response
-      final aiResponse = await _openaiService.getChatResponse(text);
+      // Call Hugging Face API to get AI response
+      final aiResponse = await _hfService.generateResponse(text);
 
       // Only proceed if widget is still mounted
       if (!mounted) return;
