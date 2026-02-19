@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Hugging Face Inference API service
 ///
@@ -11,10 +12,9 @@ import 'package:http/http.dart' as http;
 /// SECURITY: Do NOT hardcode your API key in source for production.
 /// Use environment variables, secure storage, or a backend proxy.
 class HuggingFaceService {
-  // WARNING: Do NOT hardcode tokens in production.
-  // For local testing you may paste a token here, but move it to
-  // secure storage or environment variables before release.
-  static const String _hfToken = 'hf-YOUR_API_TOKEN_HERE';
+  // Load token from environment variables (.env file)
+  // This prevents exposing secrets in source code
+  static String get _hfToken => dotenv.env['HF_API_TOKEN'] ?? '';
 
   // Model to call
   static const String _model = 'mistralai/mistral-7b-instruct-v0.2';
