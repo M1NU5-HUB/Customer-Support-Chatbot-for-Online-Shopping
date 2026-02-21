@@ -26,11 +26,19 @@ app.post('/chat', async (req, res) => {
       message: message,
     };
 
-    const rasaResp = await fetch(RASA_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    let rasaResp;
+    try {
+      rasaResp = await fetch(RASA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch (fetchErr) {
+      // Likely network/connectivity issue reaching Rasa
+      const errMsg = fetchErr && fetchErr.code ? `${fetchErr.code}` : String(fetchErr);
+      console.error(JSON.stringify({ level: 'error', message: 'Failed to reach Rasa', error: errMsg }));
+      return res.status(502).json({ reply: `Rasa unreachable at ${RASA_URL}` });
+    }
 
     // Propagate known non-200 responses with a safe reply
     if (rasaResp.status === 401) {
@@ -63,6 +71,25 @@ app.post('/chat', async (req, res) => {
     const message = err && err.stack ? err.stack : String(err);
     console.error(JSON.stringify({ level: 'error', message: 'Error forwarding to Rasa', error: message }));
     return res.status(500).json({ reply: 'Server error, please try again.' });
+  }
+});
+
+// Health endpoint to check proxy and Rasa connectivity
+app.get('/health', async (req, res) => {
+  try {
+    // Try Rasa status endpoint
+    const statusUrl = RASA_URL.replace(/\/webhooks\/rest\/webhook\/?$/, '/status');
+    let rasaOk = false;
+    try {
+      const r = await fetch(statusUrl, { method: 'GET' });
+      if (r.ok) rasaOk = true;
+    } catch (e) {
+      // ignore - rasaOk stays false
+    }
+
+    return res.json({ status: 'ok', rasa: rasaOk });
+  } catch (e) {
+    return res.status(500).json({ status: 'error' });
   }
 });
 
