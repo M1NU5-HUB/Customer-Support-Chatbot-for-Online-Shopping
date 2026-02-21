@@ -1,0 +1,29 @@
+version: '3.7'
+services:
+  rasa:
+    build: .
+    platform: linux/amd64
+    image: local/rasa:1.10.2
+    container_name: rasa_server
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./models:/app/models:rw
+      - ./data:/app/data:rw
+      - ./config.yml:/app/config.yml:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  node-proxy:
+    build:
+      context: './ai chatbot/chatbot_app'
+    image: local/node-proxy:1
+    container_name: node_proxy
+    ports:
+      - "3000:3000"
+    depends_on:
+      - rasa
+    environment:
+      - RASA_URL=http://rasa:5005/webhooks/rest/webhook
+    restart: unless-stopped
