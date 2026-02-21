@@ -1,11 +1,14 @@
 // Minimal Node.js proxy to forward chat messages to Rasa REST webhook
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const fetch = require('node-fetch');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+// HTTP request logger for easier debugging
+app.use(morgan('combined'));
 
 const PORT = process.env.PORT || 3000;
 const RASA_URL = process.env.RASA_URL || 'http://localhost:5005/webhooks/rest/webhook';
@@ -56,12 +59,19 @@ app.post('/chat', async (req, res) => {
 
     return res.json({ reply });
   } catch (err) {
-    console.error('Error forwarding to Rasa:', err && err.stack ? err.stack : err);
+    // Structured error logging
+    const message = err && err.stack ? err.stack : String(err);
+    console.error(JSON.stringify({ level: 'error', message: 'Error forwarding to Rasa', error: message }));
     return res.status(500).json({ reply: 'Server error, please try again.' });
   }
 });
 
-app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Chat proxy listening on http://localhost:${PORT} -> Rasa: ${RASA_URL}`);
-});
+// Allow importing app for tests
+module.exports = app;
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`Chat proxy listening on http://localhost:${PORT} -> Rasa: ${RASA_URL}`);
+  });
+}
